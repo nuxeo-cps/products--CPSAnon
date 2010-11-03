@@ -138,20 +138,34 @@ def anonymizeDocuments(portal, options):
     #      'type2': ['field1', 'field2', 'field3'],
     #     }
     fields_by_types_to_anonimyze = {}
+    document_type_column_index = None
+    field_id_column_index = None
+    anonymisation_column_index = None
     reader = csv.reader(open(options.schema_fields_csv, 'rb'))
+    line_number = 0
     for row in reader:
         logger.info("row = %s" % row)
-        # TODO: Find out which column are for the field_id and the anonimization
-        # decision based on the first row of the file.
 
-        logger.info("len(row) = %s" % len(row))
-        anonymize = len(row) >= 6 and row[5]
-        if anonymize:
-            type = row[0]
-            field_id = row[3]
+        # First row determines which columns represents what
+        if line_number == 0:
+            column_number = 0
+            for column in row:
+                if column.lower() == 'type':
+                    document_type_column_index = column_number
+                elif column.lower() in ('fied', 'field id'):
+                    field_id_column_index = column_number
+                elif column.lower() == 'ano':
+                    anonymisation_column_index = column_number
+                column_number += 1
+
+        if row[anonymisation_column_index]:
+            type = row[document_type_column_index]
+            field_id = row[field_id_column_index]
             fields = fields_by_types_to_anonimyze.get(type, [])
             fields.append(field_id)
             fields_by_types_to_anonimyze[type] = fields
+
+        line_number += 1
 
     # Then walk down from the root and proceed to anonimization
     if options.document_root_rpath:
