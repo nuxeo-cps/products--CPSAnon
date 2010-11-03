@@ -24,7 +24,7 @@ import sys
 import transaction
 from Products.CMFCore.utils import getToolByName
 from Products.CPSUtil import cpsjob
-from Products.CPSCore.ProxyBase import walk_cps_folders
+from Products.CPSCore.ProxyBase import walk_cps_proxies
 
 #from Products.CPSDirectory
 #from cps.ldaputils import ldifanonymize
@@ -130,9 +130,56 @@ def anonymizeDirectories(portal, options):
 
 def anonymizeDocuments(portal, options):
     logger.info("Starting documents anonymization")
+
+    # First create an object mapping from the CSV file
+    #
+    # Structure type
+    #v = { 'type1': ['field1', 'field2'],
+    #      'type2': ['field1', 'field2', 'field3'],
+    #     }
+    fields_by_types_to_anonimyze = {}
     reader = csv.reader(open(options.schema_fields_csv, 'rb'))
     for row in reader:
         logger.info("row = %s" % row)
+        # TODO: Find out which column are for the field_id and the anonimization
+        # decision based on the first row of the file.
+
+        logger.info("len(row) = %s" % len(row))
+        anonymize = len(row) >= 6 and row[5]
+        if anonymize:
+            type = row[0]
+            field_id = row[3]
+            fields = fields_by_types_to_anonimyze.get(type, [])
+            fields.append(field_id)
+            fields_by_types_to_anonimyze[type] = fields
+
+    # Then walk down from the root and proceed to anonimization
+    if options.document_root_rpath:
+        document_root = portal.restrictedTraverse(options.document_root_rpath)
+    else:
+        document_root = portal
+
+    logger.info("fields_by_types_to_anonimyze = %s" % fields_by_types_to_anonimyze)
+
+    for proxy in walk_cps_proxies(document_root):
+        logger.info("considering proxy = %s" % proxy)
+
+        field_ids = fields_by_types_to_anonimyze.get(proxy.portal_type)
+        if field_ids is None:
+            continue
+
+        logger.info("Will anonymize proxy = %s" % proxy)
+
+        doc = proxy.getContent()
+        dm = doc.getDataModel(proxy)
+        for field_id in field_ids:
+            dm[field_id] = 'XXX-anonymized-XXX'
+
+        # _commitData writes in the repository whether the document
+        # is frozen or not.
+        dm._commitData()
+
+        logger.info("Has anonymized proxy = %s" % proxy)
 
 
 def main():
@@ -154,6 +201,13 @@ def main():
                          help="Use FILE as the filename for "
                          "the schema fields CSV file to use "
                          "to know which field to anonymize")
+
+    optparser.add_option('-p', '--limit-to-rpath', dest='document_root_rpath',
+                         action='store',
+                         type='string',
+                         metavar='RPATH',
+                         help="Limit the document anonymization to documents "
+                         "under the given RPATH")
 
     optparser.add_option('-a', '--all', dest='all', action='store_true',
                          help="Run everything")
