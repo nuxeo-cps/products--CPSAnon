@@ -17,6 +17,8 @@
 """
 """
 
+import csv
+
 import logging
 import sys
 import transaction
@@ -76,15 +78,15 @@ def run(portal, options):
         options.directories = options.documents = True
 
     if options.directories:
-        anonymizeDirectories(portal)
+        anonymizeDirectories(portal, options)
 
     if options.documents:
-        anonymizeDocuments(portal)
+        anonymizeDocuments(portal, options)
 
     transaction.commit()
 
 
-def anonymizeDirectories(portal):
+def anonymizeDirectories(portal, options):
     logger.info("Starting directories anonymization")
 
     mtool = getToolByName(portal, 'portal_membership')
@@ -126,8 +128,11 @@ def anonymizeDirectories(portal):
             # and create a new one with a new id.
 
 
-def anonymizeDocuments(portal):
+def anonymizeDocuments(portal, options):
     logger.info("Starting documents anonymization")
+    reader = csv.reader(open(options.schema_fields_csv, 'rb'))
+    for row in reader:
+        logger.info("row = %s" % row)
 
 
 def main():
