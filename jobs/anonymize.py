@@ -146,23 +146,31 @@ def anonymizeDocuments(portal, options):
     reader = csv.reader(open(options.schema_fields_csv, 'rb'))
     line_number = 0
     for row in reader:
-        logger.info("row = %s" % row)
 
         # First row determines which columns represents what
         if line_number == 0:
+            logger.info("row = %s" % row)
             column_number = 0
             for column in row:
                 if column.lower() == 'type':
                     portal_type_column_index = column_number
-                elif column.lower() in ('fied', 'field id'):
+                elif column.lower() in ('fid', 'field id'):
                     field_id_column_index = column_number
                 elif column.lower() == 'ano':
                     anonymisation_column_index = column_number
                 column_number += 1
+
             if (portal_type_column_index is None or
                 field_id_column_index is None or
                 anonymisation_column_index is None):
                 raise ValueError("Bad column format in the CSV file")
+            else:
+                logger.info("portal_type_column_index = %s, "
+                            "field_id_column_index = %s, "
+                            "anonymisation_column_index = %s" %
+                            (portal_type_column_index,
+                             field_id_column_index,
+                             anonymisation_column_index))
 
         if row[anonymisation_column_index]:
             portal_type = row[portal_type_column_index]
