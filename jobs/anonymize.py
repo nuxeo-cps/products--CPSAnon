@@ -201,7 +201,7 @@ def anonymizeDocuments(portal, options):
         doc = proxy.getContent()
         dm = doc.getDataModel(proxy)
         for field_id in field_ids:
-            dm[field_id] = randomWords()
+            dm[field_id] = ' '.join(randomWords())
 
         # _commitData writes in the repository whether the document
         # is frozen or not.

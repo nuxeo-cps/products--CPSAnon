@@ -3,7 +3,10 @@
 
 This is for developpers / testers only.
 """
-from random import randint, sample, choice
+
+import string
+import re
+from random import randint, sample, choice, randrange
 
 USERNAMES = (
     "Adolphe Thiers",
@@ -401,33 +404,53 @@ for corpus_name, text in RAW_TEXTS:
     paragraphs = text.split('\n\n')
     sentences = []
     for p in paragraphs:
-        sentences.append(p.split('. '))
+        sentences += (p.split('. '))
     sentences = tuple(sentences)
     CORPORA[corpus_name] = sentences
 
+def randomSentences(corpus=None):
+    """Returns a list of sentences as a list object.
+    """
+    if corpus is None:
+        corpus_name = choice(CORPORA.keys())
+        corpus = CORPORA[corpus_name]
+    start = randint(0, len(corpus))
+    end = start + 3
+    return corpus[start:end]
+
 def randomSentence(corpus=None):
+    """Returns a sentence as a string.
+    """
     if corpus is None:
         corpus_name = choice(CORPORA.keys())
         corpus = CORPORA[corpus_name]
     return choice(corpus)
 
 def randomWords(n=None, corpus=None):
+    """Returns n words as a list object.
+    """
     if n is None:
         n = randint(3, 10)
-    return ' '.join(randomSentence(corpus=corpus)[:n])
+    sentence = randomSentence(corpus=corpus)
+    sentence = sentence.strip()
+    sentence = [not l in string.punctuation and l or ' ' for l in sentence ]
+    sentence = ''.join(sentence)
+    words = sentence.split()
+    return words[:n]
 
 def randomWord(corpus=None):
-    return randomWords(1, corpus=corpus)
+    words = randomWords(corpus=corpus)
+    return choice(words)
 
-def randomParagrah(n=None, corpus=None):
+def randomParagraph(n=None, corpus=None):
     if n is None:
         n = randint(3, 10)
     return '. '.join(randomSentence(corpus=corpus) for _ in xrange(n))
 
-def randomText( n=3, corpus=None):
-    return '\n\n'.join(randomParagrah(randint(3, 6), corpus=corpus)
+def randomText(n=3, corpus=None):
+    return '\n\n'.join(randomParagraph(randint(3, 6), corpus=corpus)
                        for _ in xrange(n))
 
 def randomCorpus(self):
-    return choice(_corpus.keys())
+    return choice(CORPORA.keys())
 
