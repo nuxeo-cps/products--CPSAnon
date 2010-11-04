@@ -1,4 +1,4 @@
-# (C) Copyright 2010 JTEK <http://jtek.fr/>
+# (C) Copyright 2010 CPS-CMS Community <http://cps-cms.org/>
 # Authors:
 # M.-A. Darche <ma.darche@cynode.org>
 #
