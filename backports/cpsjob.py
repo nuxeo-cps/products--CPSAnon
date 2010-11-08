@@ -64,15 +64,24 @@ def makerequest(app, stdout=sys.stdout, host=None, port=None):
 
     # set Zope3-style default skin so that the request is usable for
     # Zope3-style view look-ups
-    from zope.app.publication.browser import setDefaultSkin
-    setDefaultSkin(request)
+    try:
+        from zope.app.publication.browser import setDefaultSkin
+    except ImportError:
+        logger.warn("Very old version : Zope 3 views not tied to this "
+                    "Request objects")
+    else:
+        setDefaultSkin(request)
 
     return app.__of__(RequestContainer(REQUEST=request))
 
 
 def get_portal(app, portal_id):
     app = makerequest(app)
-    from Products.CPSCore.portal import CPSSite
+    try:
+        from Products.CPSCore.portal import CPSSite
+    except ImportError:
+        from Products.CPSDefault.Portal import CPSDefaultSite as CPSSite
+
     try:
         return getattr(app, portal_id)
     except AttributeError:
