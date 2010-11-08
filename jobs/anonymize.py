@@ -24,7 +24,7 @@ import sys
 import transaction
 
 from Products.CMFCore.utils import getToolByName
-from Products.CPSUtil import cpsjob
+from Products.CPSAnon import cpsjob # indirection for transparent backport
 from Products.CPSCore.ProxyBase import walk_cps_proxies
 
 from Products.CPSAnon.random_content_generation import randomWords
