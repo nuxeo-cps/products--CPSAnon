@@ -45,6 +45,8 @@ def walk(base, meta_types=()):
     it = getattr(aq_base(base), 'iterValues', None)
     if it is None:
         it = base.objectValues
+    else:
+        it = base.iterValues # the previous has no aq
 
     for ob in it(meta_types):
         yield ob
