@@ -461,11 +461,11 @@ def randomWord(corpus=None):
 def randomParagraph(n=None, corpus=None):
     if n is None:
         n = randint(3, 10)
-    return '. '.join(randomSentence(corpus=corpus) for _ in xrange(n))
+    return '. '.join([randomSentence(corpus=corpus) for _ in xrange(n)])
 
 def randomText(n=3, corpus=None):
-    return '\n\n'.join(randomParagraph(randint(3, 6), corpus=corpus)
-                       for _ in xrange(n))
+    return '\n\n'.join([randomParagraph(randint(3, 6), corpus=corpus)
+                        for _ in xrange(n)])
 
 def randomCorpus(self):
     return choice(CORPORA.keys())
