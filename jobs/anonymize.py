@@ -130,8 +130,14 @@ def anonymizeDirectories(portal, options):
             # and create a new one with a new id.
 
 
+
 def anonymizeDocuments(portal, options):
     logger.info("Starting documents anonymization")
+
+    if hasattr(CPSDocument, 'getDataModel'):
+        getDM = lambda doc, p: d.getDataModel(proxy=p)
+    else: # pre-3.4 style
+        getDM = lambda doc, p: doc.getTypeInfo().getDataModel(doc, proxy=p)
 
     # First create an object mapping from the CSV file
     #
@@ -198,8 +204,7 @@ def anonymizeDocuments(portal, options):
 
         logger.info("Will anonymize proxy = %s" % proxy)
 
-        doc = proxy.getContent()
-        dm = doc.getDataModel(proxy)
+        dm = getDM(proxy.getContent(), proxy)
         for field_id in field_ids:
             dm[field_id] = ' '.join(randomWords())
 
