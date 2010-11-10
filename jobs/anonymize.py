@@ -73,7 +73,7 @@ ATTRS_TO_ANONYMIZE = (
 )
 
 
-logger = logging.getLogger('CPSAnon.jobs.anonymize')
+logger = logging.getLogger(__name__)
 
 def run(portal, options):
     if options.all:
@@ -101,7 +101,7 @@ def anonymizeDirectories(portal, options):
     # [('member1', {'email': 'foo', 'age': 75}), ('member2', {'age': 5})]
     entries = members_dir.searchEntries(id='*', return_fields=['*'])
     for entry in entries:
-        logger.info("entry = %s" % str(entry))
+        logger.info("entry = %s", entry)
 
         for attr_name, attr_value in entry[1].items():
             #if attr_name not in ldifanonymize.ATTRS_TO_ANONYMIZE:
@@ -112,8 +112,7 @@ def anonymizeDirectories(portal, options):
             # through some schema mapping.
 
             anonymization_map_key = (attr_name, tuple([attr_value]))
-            logger.info("anonymization_map_key = %s" %
-                         str(anonymization_map_key))
+            logger.info("anonymization_map_key = %s", anonymization_map_key)
 
             if v.get(anonymization_map_key) is None:
                 continue
@@ -121,7 +120,7 @@ def anonymizeDirectories(portal, options):
             entry_values = entry[1]
             entry_values[attr_name] = v[anonymization_map_key]
 
-            logger.info("entry_values = %s" % str(entry_values))
+            logger.info("entry_values = %s", entry_values)
 
             # Saving the modified entry in the directory
             members_dir.editEntry(entry_values)
@@ -159,7 +158,7 @@ class DocumentAnonymizer(object):
 
             # First row determines which columns represents what
             if line_number == 0:
-                logger.info("row = %s" % row)
+                logger.info("row = %s", row)
                 column_number = 0
                 for column in row:
                     if column.lower() == 'type':
@@ -177,10 +176,10 @@ class DocumentAnonymizer(object):
                 else:
                     logger.info("portal_type_column_index = %s, "
                                 "field_id_column_index = %s, "
-                                "anonymisation_column_index = %s" %
-                                (self.portal_type_column_index,
-                                 self.field_id_column_index,
-                                 self.anonymisation_column_index))
+                                "anonymisation_column_index = %s",
+                                self.portal_type_column_index,
+                                self.field_id_column_index,
+                                self.anonymisation_column_index)
 
             if row[anonymisation_column_index]:
                 portal_type = row[portal_type_column_index]
@@ -191,17 +190,17 @@ class DocumentAnonymizer(object):
 
             line_number += 1
         logger.info(
-            "fields_by_types_to_anonimyze = %s" % fields_by_types_to_anonimyze)
+            "fields_by_types_to_anonimyze = %s", fields_by_types_to_anonimyze)
 
 
     def docAnonymize(self, proxy):
-        logger.info("considering proxy = %s" % proxy)
+        logger.info("considering proxy = %s", proxy)
 
         field_ids = fields_by_types_to_anonimyze.get(proxy.portal_type)
         if field_ids is None:
             continue
 
-        logger.info("Will anonymize proxy = %s" % proxy)
+        logger.info("Will anonymize proxy = %s", proxy)
 
         dm = self.getDM(proxy.getContent(), proxy)
         for field_id in field_ids:
@@ -211,7 +210,7 @@ class DocumentAnonymizer(object):
         # is frozen or not.
         dm._commitData()
 
-        logger.info("Has anonymized proxy = %s" % proxy)
+        logger.info("Has anonymized proxy = %s", proxy)
 
     def run(self):
         logger.info("Starting documents anonymization")
