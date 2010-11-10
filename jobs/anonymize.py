@@ -129,73 +129,72 @@ def anonymizeDirectories(portal, options):
             # TODO: If the id of the entry is to be modified: delete the entry
             # and create a new one with a new id.
 
+class DocumentAnonymizer(object):
+
+    def __init__(self, portal, options):
+        self.portal = portal
+        self.options = options
+        self.fields_by_types_to_anonimyze = {}
+        self.portal_type_column_index = None
+        self.field_id_column_index = None
+        self.anonymisation_column_index = None
+        # TODO better to use an upper-level conditional monkey-patch
+        if hasattr(CPSDocument, 'getDataModel'):
+            self.getDM = lambda doc, p: d.getDataModel(proxy=p)
+        else: # pre-3.4 style
+            self.getDM = lambda doc, p: doc.getTypeInfo().getDataModel(doc,
+                                                                       proxy=p)
+
+    def loadCsv(self):
+        # First create an object mapping from the CSV file
+        #
+        # Structure type
+        #v = { 'type1': ['field1', 'field2'],
+        #      'type2': ['field1', 'field2', 'field3'],
+        #     }
+
+        reader = csv.reader(open(options.schema_fields_csv, 'rb'))
+        line_number = 0
+        for row in reader:
+
+            # First row determines which columns represents what
+            if line_number == 0:
+                logger.info("row = %s" % row)
+                column_number = 0
+                for column in row:
+                    if column.lower() == 'type':
+                        portal_type_column_index = column_number
+                    elif column.lower() in ('fid', 'field id'):
+                        field_id_column_index = column_number
+                    elif column.lower() == 'ano':
+                        anonymisation_column_index = column_number
+                    column_number += 1
+
+                if (self.portal_type_column_index is None or
+                    self.field_id_column_index is None or
+                    self.anonymisation_column_index is None):
+                    raise ValueError("Bad column format in the CSV file")
+                else:
+                    logger.info("portal_type_column_index = %s, "
+                                "field_id_column_index = %s, "
+                                "anonymisation_column_index = %s" %
+                                (self.portal_type_column_index,
+                                 self.field_id_column_index,
+                                 self.anonymisation_column_index))
+
+            if row[anonymisation_column_index]:
+                portal_type = row[portal_type_column_index]
+                field_id = row[field_id_column_index]
+                fields = fields_by_types_to_anonimyze.get(type, [])
+                fields.append(field_id)
+                fields_by_types_to_anonimyze[portal_type] = fields
+
+            line_number += 1
+        logger.info(
+            "fields_by_types_to_anonimyze = %s" % fields_by_types_to_anonimyze)
 
 
-def anonymizeDocuments(portal, options):
-    logger.info("Starting documents anonymization")
-
-    if hasattr(CPSDocument, 'getDataModel'):
-        getDM = lambda doc, p: d.getDataModel(proxy=p)
-    else: # pre-3.4 style
-        getDM = lambda doc, p: doc.getTypeInfo().getDataModel(doc, proxy=p)
-
-    # First create an object mapping from the CSV file
-    #
-    # Structure type
-    #v = { 'type1': ['field1', 'field2'],
-    #      'type2': ['field1', 'field2', 'field3'],
-    #     }
-    fields_by_types_to_anonimyze = {}
-    portal_type_column_index = None
-    field_id_column_index = None
-    anonymisation_column_index = None
-    reader = csv.reader(open(options.schema_fields_csv, 'rb'))
-    line_number = 0
-    for row in reader:
-
-        # First row determines which columns represents what
-        if line_number == 0:
-            logger.info("row = %s" % row)
-            column_number = 0
-            for column in row:
-                if column.lower() == 'type':
-                    portal_type_column_index = column_number
-                elif column.lower() in ('fid', 'field id'):
-                    field_id_column_index = column_number
-                elif column.lower() == 'ano':
-                    anonymisation_column_index = column_number
-                column_number += 1
-
-            if (portal_type_column_index is None or
-                field_id_column_index is None or
-                anonymisation_column_index is None):
-                raise ValueError("Bad column format in the CSV file")
-            else:
-                logger.info("portal_type_column_index = %s, "
-                            "field_id_column_index = %s, "
-                            "anonymisation_column_index = %s" %
-                            (portal_type_column_index,
-                             field_id_column_index,
-                             anonymisation_column_index))
-
-        if row[anonymisation_column_index]:
-            portal_type = row[portal_type_column_index]
-            field_id = row[field_id_column_index]
-            fields = fields_by_types_to_anonimyze.get(type, [])
-            fields.append(field_id)
-            fields_by_types_to_anonimyze[portal_type] = fields
-
-        line_number += 1
-
-    # Then walk down from the root and proceed to anonimization
-    if options.document_root_rpath:
-        document_root = portal.restrictedTraverse(options.document_root_rpath)
-    else:
-        document_root = portal
-
-    logger.info("fields_by_types_to_anonimyze = %s" % fields_by_types_to_anonimyze)
-
-    for proxy in walk_cps_proxies(document_root):
+    def docAnonymize(self, proxy):
         logger.info("considering proxy = %s" % proxy)
 
         field_ids = fields_by_types_to_anonimyze.get(proxy.portal_type)
@@ -204,7 +203,7 @@ def anonymizeDocuments(portal, options):
 
         logger.info("Will anonymize proxy = %s" % proxy)
 
-        dm = getDM(proxy.getContent(), proxy)
+        dm = self.getDM(proxy.getContent(), proxy)
         for field_id in field_ids:
             dm[field_id] = ' '.join(randomWords())
 
@@ -213,6 +212,16 @@ def anonymizeDocuments(portal, options):
         dm._commitData()
 
         logger.info("Has anonymized proxy = %s" % proxy)
+
+    def run(self):
+        logger.info("Starting documents anonymization")
+        if options.document_root_rpath:
+            document_root = portal.restrictedTraverse(options.document_root_rpath)
+        else:
+            document_root = portal
+
+        for proxy in walk_cps_proxies(document_root):
+            self.docAnonymize(proxy)
 
 
 def main():
@@ -250,6 +259,9 @@ def main():
     if args:
         optparser.error("Args: %s; this job accepts options only."
                         "Try --help" % args)
+
+    if options.documents:
+        DocumentAnonymiser(portal, options).run()
 
     run(portal, options)
 
