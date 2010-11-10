@@ -153,9 +153,8 @@ class DocumentAnonymizer(object):
         #     }
 
         reader = csv.reader(open(options.schema_fields_csv, 'rb'))
-        line_number = 0
-        for row in reader:
 
+        for line_number, row in enumerate(reader):
             # First row determines which columns represents what
             if line_number == 0:
                 logger.info("row = %s", row)
@@ -180,6 +179,7 @@ class DocumentAnonymizer(object):
                                 self.portal_type_column_index,
                                 self.field_id_column_index,
                                 self.anonymisation_column_index)
+                continue
 
             if row[anonymisation_column_index]:
                 portal_type = row[portal_type_column_index]
@@ -188,7 +188,6 @@ class DocumentAnonymizer(object):
                 fields.append(field_id)
                 fields_by_types_to_anonimyze[portal_type] = fields
 
-            line_number += 1
         logger.info(
             "fields_by_types_to_anonimyze = %s", fields_by_types_to_anonimyze)
 
