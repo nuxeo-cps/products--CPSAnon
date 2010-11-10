@@ -3,3 +3,4 @@ try:
 except ImportError:
     import walking
 
+import cpsdocument

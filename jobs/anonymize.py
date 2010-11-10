@@ -83,7 +83,7 @@ def run(portal, options):
         anonymizeDirectories(portal, options)
 
     if options.documents:
-        anonymizeDocuments(portal, options)
+        DocumentAnonymizer(portal, options).run()
 
     transaction.commit()
 
@@ -139,12 +139,6 @@ class DocumentAnonymizer(object):
         self.portal_type_column = None
         self.field_id_column = None
         self.trigger_column = None
-        # TODO better to use an upper-level conditional monkey-patch
-        if hasattr(CPSDocument, 'getDataModel'):
-            self.getDM = lambda doc, p: d.getDataModel(proxy=p)
-        else: # pre-3.4 style
-            self.getDM = lambda doc, p: doc.getTypeInfo().getDataModel(doc,
-                                                                       proxy=p)
         self.loadCsv(options.schema_fields_csv)
 
     def loadCsv(self, fpath):
@@ -201,7 +195,7 @@ class DocumentAnonymizer(object):
 
         logger.info("Will anonymize proxy = %s", proxy)
 
-        dm = self.getDM(proxy.getContent(), proxy)
+        dm = proxy.getContent().getDataModel(proxy=proxy)
         for field_id in field_ids:
             dm[field_id] = ' '.join(randomWords())
 
@@ -213,11 +207,11 @@ class DocumentAnonymizer(object):
 
     def run(self):
         logger.info("Starting documents anonymization")
-        if options.document_root_rpath:
-            document_root = portal.restrictedTraverse(
+        if self.options.document_root_rpath:
+            document_root = self.portal.restrictedTraverse(
                 self.options.document_root_rpath)
         else:
-            document_root = portal
+            document_root = self.portal
 
         for c, proxy in enumerate(walk_cps_proxies(document_root)):
             self.docAnonymize(proxy)
@@ -260,9 +254,6 @@ def main():
     if args:
         optparser.error("Args: %s; this job accepts options only."
                         "Try --help" % args)
-
-    if options.documents:
-        DocumentAnonymiser(portal, options).run()
 
     run(portal, options)
 
