@@ -135,10 +135,10 @@ class DocumentAnonymizer(object):
     def __init__(self, portal, options):
         self.portal = portal
         self.options = options
-        self.fields_by_types_to_anonymize = {}
-        self.portal_type_column_index = None
-        self.field_id_column_index = None
-        self.anonymisation_column_index = None
+        self.fields_by_type = {}
+        self.portal_type_column = None
+        self.field_id_column = None
+        self.trigger_column = None
         # TODO better to use an upper-level conditional monkey-patch
         if hasattr(CPSDocument, 'getDataModel'):
             self.getDM = lambda doc, p: d.getDataModel(proxy=p)
@@ -164,41 +164,39 @@ class DocumentAnonymizer(object):
                 column_number = 0
                 for column in row:
                     if column.lower() == 'type':
-                        self.portal_type_column_index = column_number
+                        self.portal_type_column = column_number
                     elif column.lower() in ('fid', 'field id'):
-                        self.field_id_column_index = column_number
+                        self.field_id_column = column_number
                     elif column.lower() == 'ano':
-                        self.anonymisation_column_index = column_number
+                        self.trigger_column = column_number
                     column_number += 1
 
-                if (self.portal_type_column_index is None or
-                    self.field_id_column_index is None or
-                    self.anonymisation_column_index is None):
+                if (self.portal_type_column is None or
+                    self.field_id_column is None or
+                    self.trigger_column is None):
                     raise ValueError("Bad column format in the CSV file")
                 else:
-                    logger.info("portal_type_column_index = %s, "
-                                "field_id_column_index = %s, "
-                                "anonymisation_column_index = %s",
-                                self.portal_type_column_index,
-                                self.field_id_column_index,
-                                self.anonymisation_column_index)
+                    logger.info("portal_type_column = %s, "
+                                "field_id_column = %s, "
+                                "trigger_column = %s",
+                                self.portal_type_column,
+                                self.field_id_column,
+                                self.trigger_column)
                 continue
 
-            if row[anonymisation_column_index]:
-                portal_type = row[self.portal_type_column_index]
-                field_id = row[self.field_id_column_index]
-                fields = self.fields_by_types_to_anonymize.setdefault(
-                    portal_type, [])
+            if row[self.trigger_column]:
+                portal_type = row[self.portal_type_column]
+                field_id = row[self.field_id_column]
+                fields = self.fields_by_type.setdefault(portal_type, [])
                 fields.append(field_id)
 
-        logger.info("fields_by_types_to_anonymize = %s",
-                    self.fields_by_types_to_anonymize)
+        logger.info("fields_by_types_to_anonymize = %s", self.fields_by_type)
 
 
     def docAnonymize(self, proxy):
         logger.info("considering proxy = %s", proxy)
 
-        field_ids = self.fields_by_types_to_anonymize.get(proxy.portal_type)
+        field_ids = self.fields_by_type.get(proxy.portal_type)
         if field_ids is None:
             return
 
