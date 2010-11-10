@@ -133,7 +133,7 @@ class DocumentAnonymizer(object):
     def __init__(self, portal, options):
         self.portal = portal
         self.options = options
-        self.fields_by_types_to_anonimyze = {}
+        self.fields_by_types_to_anonymize = {}
         self.portal_type_column_index = None
         self.field_id_column_index = None
         self.anonymisation_column_index = None
@@ -185,18 +185,18 @@ class DocumentAnonymizer(object):
             if row[anonymisation_column_index]:
                 portal_type = row[self.portal_type_column_index]
                 field_id = row[self.field_id_column_index]
-                fields = self.fields_by_types_to_anonimyze.get(type, [])
+                fields = self.fields_by_types_to_anonymize.get(type, [])
                 fields.append(field_id)
-                self.fields_by_types_to_anonimyze[portal_type] = fields
+                self.fields_by_types_to_anonymize[portal_type] = fields
 
-        logger.info("fields_by_types_to_anonimyze = %s",
-                    self.fields_by_types_to_anonimyze)
+        logger.info("fields_by_types_to_anonymize = %s",
+                    self.fields_by_types_to_anonymize)
 
 
     def docAnonymize(self, proxy):
         logger.info("considering proxy = %s", proxy)
 
-        field_ids = fields_by_types_to_anonimyze.get(proxy.portal_type)
+        field_ids = self.fields_by_types_to_anonymize.get(proxy.portal_type)
         if field_ids is None:
             continue
 
