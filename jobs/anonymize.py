@@ -161,8 +161,12 @@ def main():
     portal, options, args = cpsjob.bootstrap(app)
 
     if args:
-        optparser.error("Args: %s; this job accepts options only."
-                        "Try --help" % args)
+        optparser.error("Args: %s; this job accepts one argument only"
+                        " (portal id) "
+                        "Try --help" % ' '.join(args))
+
+    if options.schema_fields_csv is None:
+        optparser.error("--csvfile option is mandatory.")
 
     run(portal, options)
 
