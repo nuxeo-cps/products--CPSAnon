@@ -82,7 +82,10 @@ def run(portal, options):
     if options.documents:
         an = DocumentAnonymizer(portal)
         an.loadCsv(options.schema_fields_csv)
-        an.run(options.document_root_rpath)
+        if options.single_doc_rpath:
+            an.docAnonymize(portal.restrictedTraverse(options.single_doc_rpath))
+        else:
+            an.run(options.document_root_rpath)
 
     transaction.commit()
 
@@ -158,6 +161,11 @@ def main():
     optparser.add_option('-a', '--all', dest='all', action='store_true',
                          help="Run everything")
 
+    optparser.add_option('--single-document', dest='single_doc_rpath',
+                         metavar='RPATH',
+                         help="Anonymize one single document, at the given "
+                         "RPATH. Incompatible with --limit-to-rpath")
+
     portal, options, args = cpsjob.bootstrap(app)
 
     if args:
@@ -166,7 +174,10 @@ def main():
                         "Try --help" % ' '.join(args))
 
     if options.schema_fields_csv is None:
-        optparser.error("--csvfile option is mandatory.")
+        optparser.error("--csvfile option is mandatory. Try --help.")
+
+    if options.single_doc_rpath and options.document_root_rpath:
+        optparser.error("Incompatible options. Try --help.")
 
     run(portal, options)
 
