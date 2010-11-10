@@ -186,9 +186,8 @@ class DocumentAnonymizer(object):
 
             if row[self.trigger_column]:
                 portal_type = row[self.portal_type_column]
-                field_id = row[self.field_id_column]
                 fields = self.fields_by_type.setdefault(portal_type, [])
-                fields.append(field_id)
+                fields.append(row[self.field_id_column])
 
         logger.info("fields_by_types_to_anonymize = %s", self.fields_by_type)
 
