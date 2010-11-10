@@ -143,8 +143,9 @@ class DocumentAnonymizer(object):
         else: # pre-3.4 style
             self.getDM = lambda doc, p: doc.getTypeInfo().getDataModel(doc,
                                                                        proxy=p)
+        self.loadCsv(options.schema_fields_csv)
 
-    def loadCsv(self):
+    def loadCsv(self, fpath):
         # First create an object mapping from the CSV file
         #
         # Structure type
@@ -152,7 +153,7 @@ class DocumentAnonymizer(object):
         #      'type2': ['field1', 'field2', 'field3'],
         #     }
 
-        reader = csv.reader(open(options.schema_fields_csv, 'rb'))
+        reader = csv.reader(open(fpath, 'rb'))
 
         for line_number, row in enumerate(reader):
             # First row determines which columns represents what
@@ -161,11 +162,11 @@ class DocumentAnonymizer(object):
                 column_number = 0
                 for column in row:
                     if column.lower() == 'type':
-                        portal_type_column_index = column_number
+                        self.portal_type_column_index = column_number
                     elif column.lower() in ('fid', 'field id'):
-                        field_id_column_index = column_number
+                        self.field_id_column_index = column_number
                     elif column.lower() == 'ano':
-                        anonymisation_column_index = column_number
+                        self.anonymisation_column_index = column_number
                     column_number += 1
 
                 if (self.portal_type_column_index is None or
@@ -182,14 +183,14 @@ class DocumentAnonymizer(object):
                 continue
 
             if row[anonymisation_column_index]:
-                portal_type = row[portal_type_column_index]
-                field_id = row[field_id_column_index]
-                fields = fields_by_types_to_anonimyze.get(type, [])
+                portal_type = row[self.portal_type_column_index]
+                field_id = row[self.field_id_column_index]
+                fields = self.fields_by_types_to_anonimyze.get(type, [])
                 fields.append(field_id)
-                fields_by_types_to_anonimyze[portal_type] = fields
+                self.fields_by_types_to_anonimyze[portal_type] = fields
 
-        logger.info(
-            "fields_by_types_to_anonimyze = %s", fields_by_types_to_anonimyze)
+        logger.info("fields_by_types_to_anonimyze = %s",
+                    self.fields_by_types_to_anonimyze)
 
 
     def docAnonymize(self, proxy):
@@ -214,7 +215,8 @@ class DocumentAnonymizer(object):
     def run(self):
         logger.info("Starting documents anonymization")
         if options.document_root_rpath:
-            document_root = portal.restrictedTraverse(options.document_root_rpath)
+            document_root = portal.restrictedTraverse(
+                self.options.document_root_rpath)
         else:
             document_root = portal
 
