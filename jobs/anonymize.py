@@ -130,6 +130,8 @@ def anonymizeDirectories(portal, options):
 
 class DocumentAnonymizer(object):
 
+    txn_chunk_size = 100
+
     def __init__(self, portal, options):
         self.portal = portal
         self.options = options
@@ -220,8 +222,10 @@ class DocumentAnonymizer(object):
         else:
             document_root = portal
 
-        for proxy in walk_cps_proxies(document_root):
+        for c, proxy in enumerate(walk_cps_proxies(document_root)):
             self.docAnonymize(proxy)
+            if c % self.txn_chunk_size == 0:
+                transaction.commit()
 
 
 def main():
