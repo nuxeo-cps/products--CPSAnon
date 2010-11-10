@@ -31,6 +31,7 @@ context external methods are normally launched in.
 import sys
 import os
 import logging
+logger = logging.getLogger(__name__)
 
 import optparse
 optparser = optparse.OptionParser(
