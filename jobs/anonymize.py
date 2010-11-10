@@ -198,7 +198,7 @@ class DocumentAnonymizer(object):
 
         field_ids = self.fields_by_types_to_anonymize.get(proxy.portal_type)
         if field_ids is None:
-            continue
+            return
 
         logger.info("Will anonymize proxy = %s", proxy)
 
