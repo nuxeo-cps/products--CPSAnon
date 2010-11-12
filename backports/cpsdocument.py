@@ -1,7 +1,8 @@
 from Globals import InitializeClass
 from AccessControl import ClassSecurityInfo
 from Products.CMFCore.permissions import View
-from Products.CPSDocument import CPSDocument
+from Products.CPSCore.utils import bhasattr
+from Products.CPSDocument.CPSDocument import CPSDocument
 
 if not hasattr(CPSDocument, 'getDataModel'):
     security = ClassSecurityInfo()
@@ -21,7 +22,7 @@ if not hasattr(CPSDocument, 'getDataModel'):
             raise ValueError("No TI for portal_type %r" % self.portal_type)
 
         # It has to be an FTI in order to have the getDataModel method
-        if getattr(aq_base(ti), 'getDataModel', 0):
+        if bhasattr(ti, 'getDataModel'):
             return self.getTypeInfo().getDataModel(self, proxy=proxy)
 
         raise ValueError("%s is not a FTI : getDataModel is not available"

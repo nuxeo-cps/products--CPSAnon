@@ -31,7 +31,6 @@ context external methods are normally launched in.
 import sys
 import os
 import logging
-logger = logging.getLogger(__name__)
 
 import optparse
 optparser = optparse.OptionParser(
@@ -68,7 +67,7 @@ def makerequest(app, stdout=sys.stdout, host=None, port=None):
     try:
         from zope.app.publication.browser import setDefaultSkin
     except ImportError:
-        logger.warn("Very old version : Zope 3 views not tied to this "
+        logging.getLogger(__name__).warn("Very old version : Zope 3 views not tied to this "
                     "Request objects")
     else:
         setDefaultSkin(request)
