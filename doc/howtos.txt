@@ -1,0 +1,74 @@
+==============
+CPSAnon Howtos
+==============
+
+:Revision: $Id$
+
+.. sectnum::    :depth: 4
+.. contents::   :depth: 4
+
+
+This document presents the different kind of anonymisation one can
+achieve with CPSAnon.
+
+
+Empty portal export/import
+==========================
+
+This is some ultimate form of anonymization : exporting a whole CPS
+site without the documents. This is really useful for instances that
+had lots of history that one wants to duplicate in a development or
+test setup : all the persistent configuration, customizations etc
+will still be there.
+
+This relies on patches of ZODB that provide an exlusion mechanism
+for the export/import (zexp) procedure. Invocation is in cpsjob
+style.
+
+Example
+-------
+
+On the instance to export, do::
+
+    $ bin/zopectl run Products/CPSAnon/jobs/dump_empty_portal.py -u \
+    admin cps cps.zexp excloids
+
+Of course, ``admin`` and ``cps`` are to be replaced by actual ids
+of Zope toplevel manager and CPS portal, respectively.
+
+The file ``cps.zexp`` is the export itself. The list of excluded
+object ids is saved in file ``excloids`` for later use by the importer.
+
+Now, on the destination instance, do::
+
+    $ bin/zopectl run Products/CPSAnon/jobs/mount_empty_portal.py -u \
+    admin cps cps.zexp excloids
+
+Here ``admin`` is the Zope manager of the destination instance, but it is
+important that the portal id is the same as in the origin
+instance. This can *not* work as a renaming system. If it isn't
+identical, the job won't be able to fix up the portal after the actual
+zexp import.
+Of course ``cps.zexp`` and ``excloids`` are the files produced by the
+export part above.
+
+On a CPS Default Site, you'll probably want to import the "Various
+Settings" step of ``CPSDefaultSite`` profile.
+
+Going further
+-------------
+
+Check the source of both scripts. The first simply lists objects to
+be excluded from the export. The second adds a ``PortalFixer`` class
+that takes care of all needed reconstructions after the import
+itself. You may want to subclass it to recreate content roots
+(``workspaces`` and the like) and minimal site structures
+according to your needs.
+
+
+.. Emacs
+.. Local Variables:
+.. mode: rst
+.. End:
+.. Vim
+.. vim: set filetype=rst:
