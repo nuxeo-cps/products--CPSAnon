@@ -18,6 +18,7 @@ from ZODB.utils import p64, u64
 from ZODB.serialize import referencesf
 from ZODB.ExportImport import ExportImport
 from ZODB.ExportImport import export_end_marker, Ghost, persistent_id
+from OFS.ObjectManager import ObjectManager, customImporters
 
 def exportFile(self, oid, f=None, excluded_oids=()):
     if f is None:
@@ -47,6 +48,36 @@ def exportFile(self, oid, f=None, excluded_oids=()):
     return f
 
 ExportImport.exportFile = exportFile
+
+def importFile(self, f, clue='', customImporters=None, excluded_oids=()):
+    """This patch's only purpose is to pass excluded_oids on."""
+    # This is tricky, because we need to work in a transaction!
+
+    if isinstance(f, str):
+        f = open(f, 'rb')
+
+    magic = f.read(4)
+    if magic != 'ZEXP':
+        if customImporters and customImporters.has_key(magic):
+            f.seek(0)
+            return customImporters[magic](self, f, clue)
+        raise ExportError("Invalid export header")
+
+    t = self.transaction_manager.get()
+    if clue:
+        t.note(clue)
+
+    return_oid_list = []
+    self._import = f, return_oid_list, excluded_oids # GR: here
+    self._register()
+    t.savepoint(optimistic=True) # this is what triggers _importDuringCommit
+    # Return the root imported object.
+    if return_oid_list:
+        return self.get(return_oid_list[0])
+    else:
+        return None
+
+ExportImport.importFile = importFile
 
 def _importDuringCommit(self, transaction, f, return_oid_list,
                         excluded_oids=()):
@@ -117,20 +148,22 @@ def _importDuringCommit(self, transaction, f, return_oid_list,
 
         kl = unpickler.load()
         attrs = unpickler.load()
-        objects = attrs.get('_objects') # GR about ObjectManager only
-        objects_changed = False
-        for k, v in attrs.items():
-            if v.__class__ != Ghost:
-                continue
-            ooid = ooids[v.oid]
-            if ooid in excluded_oids:
-                del attrs[k]
-                if objects is not None:
-                    objects = tuple(o for o in objects if o['id'] != k)
-                    objects_changed = True
 
-        if objects_changed:
-            attrs['_objects'] = objects
+        if isinstance(attrs, dict): # objects from C, int subclasses aren't
+            objects = attrs.get('_objects') # GR about ObjectManager only
+            objects_changed = False
+            for k, v in attrs.items():
+                if v.__class__ != Ghost:
+                    continue
+                ooid = ooids[v.oid]
+                if ooid in excluded_oids:
+                    del attrs[k]
+                    if objects is not None:
+                        objects = tuple(o for o in objects if o['id'] != k)
+                        objects_changed = True
+
+            if objects_changed:
+                attrs['_objects'] = objects
 
         pickler.dump(kl)
         pickler.dump(attrs)
@@ -139,6 +172,36 @@ def _importDuringCommit(self, transaction, f, return_oid_list,
         self._storage.store(oid, None, p, version, transaction)
 
 ExportImport._importDuringCommit = _importDuringCommit
+
+
+def _importObjectFromFile(self, filepath, verify=1, set_owner=1,
+                          excluded_oids=()):
+    """This patch's only purpose is to pass excluded_oids on."""
+    # locate a valid connection
+    connection=self._p_jar
+    obj=self
+
+    while connection is None:
+        obj=obj.aq_parent
+        connection=obj._p_jar
+    ob=connection.importFile(
+        filepath, customImporters=customImporters,
+        excluded_oids=excluded_oids)  # GR: here
+    if verify: self._verifyObjectPaste(ob, validate_src=0)
+    id=ob.id
+    if hasattr(id, 'im_func'): id=id()
+    self._setObject(id, ob, set_owner=set_owner)
+
+    # try to make ownership implicit if possible in the context
+    # that the object was imported into.
+    ob=self._getOb(id)
+    ob.manage_changeOwnershipType(explicit=0)
+
+ObjectManager._importObjectFromFile = _importObjectFromFile
+
+#
+# Convenience helpers
+#
 
 def export(base, rpath, f, excluded=()):
     """Make a zexp export of an object to file f.
@@ -156,3 +219,14 @@ def export(base, rpath, f, excluded=()):
     f.close()
     return excluded_oids
 
+
+def import_file(container, filepath, excluded_oids=()):
+    """Helper function to mount zexp with excluded oids.
+
+    The container must be an OFS.ObjectManager instance.
+    The actual import is done during subsequent transaction commit.
+    This function does what's needed so that _importDuringCommit() above
+    is passed the excluded oids.
+    """
+
+    container._importObjectFromFile(filepath, excluded_oids=excluded_oids)
