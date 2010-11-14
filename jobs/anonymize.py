@@ -17,17 +17,14 @@
 """
 """
 
-import csv
-
 import logging
 import sys
 import transaction
 
 from Products.CMFCore.utils import getToolByName
 from Products.CPSAnon import cpsjob # indirection for transparent backport
-from Products.CPSCore.ProxyBase import walk_cps_proxies
 
-from Products.CPSAnon.random_content_generation import randomWords
+from Products.CPSAnon.document import DocumentAnonymizer
 
 #from Products.CPSDirectory
 #from cps.ldaputils import ldifanonymize
@@ -83,7 +80,12 @@ def run(portal, options):
         anonymizeDirectories(portal, options)
 
     if options.documents:
-        anonymizeDocuments(portal, options)
+        an = DocumentAnonymizer(portal)
+        an.loadCsv(options.schema_fields_csv)
+        if options.single_doc_rpath:
+            an.docAnonymize(portal.restrictedTraverse(options.single_doc_rpath))
+        else:
+            an.run(options.document_root_rpath)
 
     transaction.commit()
 
@@ -128,103 +130,6 @@ def anonymizeDirectories(portal, options):
             # TODO: If the id of the entry is to be modified: delete the entry
             # and create a new one with a new id.
 
-class DocumentAnonymizer(object):
-
-    txn_chunk_size = 100
-
-    def __init__(self, portal, options):
-        self.portal = portal
-        self.options = options
-        self.fields_by_type = {}
-        self.portal_type_column = None
-        self.field_id_column = None
-        self.trigger_column = None
-        # TODO better to use an upper-level conditional monkey-patch
-        if hasattr(CPSDocument, 'getDataModel'):
-            self.getDM = lambda doc, p: d.getDataModel(proxy=p)
-        else: # pre-3.4 style
-            self.getDM = lambda doc, p: doc.getTypeInfo().getDataModel(doc,
-                                                                       proxy=p)
-        self.loadCsv(options.schema_fields_csv)
-
-    def loadCsv(self, fpath):
-        # First create an object mapping from the CSV file
-        #
-        # Structure type
-        #v = { 'type1': ['field1', 'field2'],
-        #      'type2': ['field1', 'field2', 'field3'],
-        #     }
-
-        reader = csv.reader(open(fpath, 'rb'))
-
-        for line_number, row in enumerate(reader):
-            # First row determines which columns represents what
-            if line_number == 0:
-                logger.info("row = %s", row)
-                column_number = 0
-                for column in row:
-                    if column.lower() == 'type':
-                        self.portal_type_column = column_number
-                    elif column.lower() in ('fid', 'field id'):
-                        self.field_id_column = column_number
-                    elif column.lower() == 'ano':
-                        self.trigger_column = column_number
-                    column_number += 1
-
-                if (self.portal_type_column is None or
-                    self.field_id_column is None or
-                    self.trigger_column is None):
-                    raise ValueError("Bad column format in the CSV file")
-                else:
-                    logger.info("portal_type_column = %s, "
-                                "field_id_column = %s, "
-                                "trigger_column = %s",
-                                self.portal_type_column,
-                                self.field_id_column,
-                                self.trigger_column)
-                continue
-
-            if row[self.trigger_column]:
-                portal_type = row[self.portal_type_column]
-                fields = self.fields_by_type.setdefault(portal_type, [])
-                fields.append(row[self.field_id_column])
-
-        logger.info("fields_by_types_to_anonymize = %s", self.fields_by_type)
-
-
-    def docAnonymize(self, proxy):
-        logger.info("considering proxy = %s", proxy)
-
-        field_ids = self.fields_by_type.get(proxy.portal_type)
-        if field_ids is None:
-            return
-
-        logger.info("Will anonymize proxy = %s", proxy)
-
-        dm = self.getDM(proxy.getContent(), proxy)
-        for field_id in field_ids:
-            dm[field_id] = ' '.join(randomWords())
-
-        # _commitData writes in the repository whether the document
-        # is frozen or not.
-        dm._commitData()
-
-        logger.info("Has anonymized proxy = %s", proxy)
-
-    def run(self):
-        logger.info("Starting documents anonymization")
-        if options.document_root_rpath:
-            document_root = portal.restrictedTraverse(
-                self.options.document_root_rpath)
-        else:
-            document_root = portal
-
-        for c, proxy in enumerate(walk_cps_proxies(document_root)):
-            self.docAnonymize(proxy)
-            if c % self.txn_chunk_size == 0:
-                transaction.commit()
-
-
 def main():
     """cpsjob bootstrap."""
     optparser = cpsjob.optparser
@@ -248,6 +153,7 @@ def main():
     optparser.add_option('-p', '--limit-to-rpath', dest='document_root_rpath',
                          action='store',
                          type='string',
+                         default='',
                          metavar='RPATH',
                          help="Limit the document anonymization to documents "
                          "under the given RPATH")
@@ -255,14 +161,23 @@ def main():
     optparser.add_option('-a', '--all', dest='all', action='store_true',
                          help="Run everything")
 
+    optparser.add_option('--single-document', dest='single_doc_rpath',
+                         metavar='RPATH',
+                         help="Anonymize one single document, at the given "
+                         "RPATH. Incompatible with --limit-to-rpath")
+
     portal, options, args = cpsjob.bootstrap(app)
 
     if args:
-        optparser.error("Args: %s; this job accepts options only."
-                        "Try --help" % args)
+        optparser.error("Args: %s; this job accepts one argument only"
+                        " (portal id) "
+                        "Try --help" % ' '.join(args))
 
-    if options.documents:
-        DocumentAnonymiser(portal, options).run()
+    if options.schema_fields_csv is None:
+        optparser.error("--csvfile option is mandatory. Try --help.")
+
+    if options.single_doc_rpath and options.document_root_rpath:
+        optparser.error("Incompatible options. Try --help.")
 
     run(portal, options)
 
