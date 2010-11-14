@@ -24,6 +24,11 @@ will still be there.
 This relies on patches of ZODB that provide an exlusion mechanism
 for the export/import (zexp) procedure. Invocation is in cpsjob
 style.
+These patches are not applied by default, so that having CPSAnon
+around (a bad idea anyway) does not change Zope's behaviour.
+
+Warning: the produced files will be unusable with the standard
+export/import features of Zope
 
 Example
 -------
@@ -59,12 +64,14 @@ Going further
 -------------
 
 Check the source of both scripts. The first simply lists objects to
-be excluded from the export. The second adds a ``PortalFixer`` class
-that takes care of all needed reconstructions after the import
-itself. You may want to subclass it to recreate content roots
+be excluded from the export and pass them to the (patched) ZODB method.
+
+The second defines a ``PortalMounter`` class
+that handles the import itself, and takes care of all needed
+reconstructions afterwards.
+You may want to subclass it to recreate content roots
 (``workspaces`` and the like) and minimal site structures
 according to your needs.
-
 
 .. Emacs
 .. Local Variables:

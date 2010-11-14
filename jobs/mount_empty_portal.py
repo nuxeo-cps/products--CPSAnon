@@ -33,10 +33,11 @@ def read_exclusion_file(exclf):
             return oids
         oids.append(oid)
 
-class PortalFixer(object):
+class PortalMounter(object):
 
-    def __init__(self, portal):
-        self.portal = portal
+    def __init__(self, app, portal_id):
+        self.app = app
+        self.portal_id = portal_id
 
     def createTools(self, *classes):
         for ToolClass in classes:
@@ -67,14 +68,36 @@ class PortalFixer(object):
         self.fixupCatalog()
         self.fixupTrees()
 
-def mount(app, portal_id, zexp, exclf):
-    """Mount the CPS portal from zexp, with excluded OIDs as in exclf."""
+    def loadPortal(self):
+        self.portal = self.app[self.portal_id]
 
-    import_file(app, zexp, read_exclusion_file(exclf))
-    transaction.commit()
-    fixer = PortalFixer(app[portal_id])
-    fixer.fixup()
-    transaction.commit()
+    def beforeImport(self):
+        self.deactivateCatalogs()
+
+    def afterImport(self):
+        self.reactivateCatalogs()
+
+    def deactivateCatalogs(self):
+        from Products.ZCatalog.ZCatalog import ZCatalog
+        self._save_catalog_object = ZCatalog.catalog_object
+        def catalog_object(*args, **kwargs):
+            return
+        ZCatalog.catalog_object = catalog_object
+
+    def reactivateCatalogs(self):
+        from Products.ZCatalog.ZCatalog import ZCatalog
+        ZCatalog.catalog_object = self._save_catalog_object
+
+    def mount(self, zexp, exclf):
+        """Mount the CPS portal from zexp, with excluded OIDs as in exclf."""
+
+        self.beforeImport()
+        import_file(self.app, zexp, read_exclusion_file(exclf))
+        self.afterImport()
+        transaction.commit()
+        self.loadPortal()
+        self.fixup()
+        transaction.commit()
 
 def main(app):
     optparser = cpsjob.optparser
@@ -88,9 +111,8 @@ def main(app):
         optparser.error("Please provide three arguments : "
                         "portal id, input file and exclusion file")
 
-    mount(app, *args)
-
-    transaction.commit()
+    mounter = PortalMounter(app, args[0])
+    mounter.mount(*args[1:])
 
 
 if __name__ == '__main__':
