@@ -203,7 +203,7 @@ ObjectManager._importObjectFromFile = _importObjectFromFile
 # Convenience helpers
 #
 
-def export(base, rpath, f, excluded=()):
+def export_file(base, rpath, f, excluded=()):
     """Make a zexp export of an object to file f.
 
     f is the FS file path.
