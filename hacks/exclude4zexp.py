@@ -20,6 +20,8 @@ from ZODB.ExportImport import ExportImport
 from ZODB.ExportImport import export_end_marker, Ghost, persistent_id
 from OFS.ObjectManager import ObjectManager, customImporters
 
+logger = logging.getLogger(__name__)
+
 def exportFile(self, oid, f=None, excluded_oids=()):
     if f is None:
         f = TemporaryFile()
@@ -209,12 +211,27 @@ def export_file(base, rpath, f, excluded=()):
     f is the FS file path.
     base is a starting point object in the app.
     rpath is the relative path of the object to export, from base
-    excluded is a list of relative paths of objects to avoid, from base
+    excluded is a list of enhanced relative paths of objects to avoid,
+    from base. The enhancement is to allow digging in attributes that possibly
+    can't be reached by traversal.
+    Example (base is a CPS portal): 'portal_catalog:_catalog')
+
 
     return a list of oids to pass to the importer on the other side."""
 
     ob = base.unrestrictedTraverse(rpath)
-    excluded_oids = [base.unrestrictedTraverse(e)._p_oid for e in excluded]
+    excluded_oids = []
+    for rpath in excluded:
+        split = rpath.split(':')
+        try:
+            ex = base.unrestrictedTraverse(split[0])
+            for attr in split[1:]:
+                ex = getattr(ex, attr)
+        except (KeyError, AttributeError):
+            logger.warn("Ignoring exclude of unreachable object at %s", rpath)
+        else:
+            excluded_oids.append(ex._p_oid)
+
     f = ob._p_jar.exportFile(ob._p_oid, f, excluded_oids=excluded_oids)
     f.close()
     return excluded_oids
