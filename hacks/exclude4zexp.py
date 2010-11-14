@@ -19,7 +19,7 @@ from ZODB.serialize import referencesf
 from ZODB.ExportImport import ExportImport
 from ZODB.ExportImport import export_end_marker, Ghost, persistent_id
 
-def exportFile(self, oid, f=None, excluded_oids=('\x00\x00\x00\x00\x00\x00+\x9e',)):
+def exportFile(self, oid, f=None, excluded_oids=()):
     if f is None:
         f = TemporaryFile()
     elif isinstance(f, str):
